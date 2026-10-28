@@ -9,3 +9,4 @@
 *.dtb binary
 *.db binary
 *.ini text eol=lf
+*.apk binary

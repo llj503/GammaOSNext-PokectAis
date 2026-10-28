@@ -6,6 +6,7 @@
 2. **Daijisho 返回键助手**：Daijisho 1.8.1 游戏列表单按 Back/B 不返回；`ngp_back_helper` 只在 Library 页补一次 Back（B 补两次），单按即可返回。
 3. **WiFi 看门狗 v2**：AIC8800DC USB 假死后，v1 重载驱动常留下 wlan0 DOWN；v2 按“重启 WiFi 栈 → USB 重新枚举 → 重载驱动”恢复，并要求实际拿到 IP + 网关 ping 通。脚本替换 p5 的 `/bin/rg52-wifi-watchdog.sh`。
 4. **Daijisho 3DS 平台种子**：镜像默认仍是 Leanback；如果用户自己装了 Daijisho，开机服务会在它的数据库出现后补 Nintendo 3DS 平台和 azahar-nano player，不覆盖现有库；ROM 目录仍需 + Paths 授权。
+5. **手柄拼音 IME**：预装开源离线拼音输入法 [ngp-pinyin-ime](https://github.com/llj503/ngp-pinyin-ime)（10×4 手柄网格、约 12 万词条），并把两个开机 IME 脚本改为尊重 `persist.rg52.ime`、优先手柄拼音，AOSP 保留回退。
 
 ---
 

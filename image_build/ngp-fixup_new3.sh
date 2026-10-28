@@ -13,9 +13,19 @@
 #
 # 这里：① 启用 AOSP leanback 键盘；② 用 persist.rg52.ime 改掉强制目标；
 #       ③ 等它的 60 秒循环跑完，再收尾强制设置一次（双保险）。
+# IME 选择：persist.rg52.ime 优先；没有值则优先自带“手柄拼音”
+# （com.llj.ngpime），未安装才回退 AOSP Leanback。
 
 TAG=ngp-fixup
-IME_ID=com.android.inputmethod.leanback/.service.LeanbackImeService
+AOSP_IME=com.android.inputmethod.leanback/.service.LeanbackImeService
+IME_ID=$(getprop persist.rg52.ime)
+if [ -z "$IME_ID" ]; then
+    if pm path com.llj.ngpime >/dev/null 2>&1; then
+        IME_ID=com.llj.ngpime/.NgpImeService
+    else
+        IME_ID=$AOSP_IME
+    fi
+fi
 
 log -t $TAG "start"
 

@@ -1,6 +1,6 @@
 # NGP45HT v26 追加修正（2026-10-28）
 
-以下四项是在 NGP45HT（RK3562 / 2GB / 1024x768）的 v26 镜像上实测后补的，
+以下五项是在 NGP45HT（RK3562 / 2GB / 1024x768）的 v26 镜像上实测后补的，
 均已接入 `image_build/build_v26_ngp.sh`。
 
 ## 1. 3DS 默认大屏布局（修“黑屏”）
@@ -104,6 +104,25 @@ Android SAF 授权，shell/appops 不能替代。授权后平台会自动扫描�
 日志：`/data/system/ngp-seed.log`。如果 Daijisho 是在服务超时后才安装的，
 重启一次即可重跑。
 
+## 5. 手柄拼音 IME（NGP Pad Pinyin IME）
+
+Source: [llj503/ngp-pinyin-ime](https://github.com/llj503/ngp-pinyin-ime)（Apache-2.0；
+词典数据 CC-CEDICT CC-BY-SA 4.0 + jieba MIT）。
+
+- 包名 `com.llj.ngpime`，10×4 QWERTY 网格，纯 D-pad 焦点；A 输入，B 退格，
+  X 空格/上屏首选，Y 候选，L1/R1 翻页，Start 回车，Select 中/英/符号。
+- 离线词典约 12 万词条 / 8.6 万拼音键；无 INTERNET 权限；APK 约 1.1 MB。
+- 镜像把 APK 放到 `/system/app/NgpIme/NgpIme.apk`；p5 同时替换
+  `ngp-fixup.sh` 和 `rg52-wifi-fix.sh`，二者现在优先使用
+  `persist.rg52.ime`，未设置时优先手柄拼音，未安装才回退 AOSP Leanback。
+- 设置持久值（重启后仍默认）：
+  `setprop persist.rg52.ime com.llj.ngpime/.NgpImeService`
+- 仍保留 AOSP Leanback 作为故障回退；`rg52-ime.sh` 会按持久值保持选择。
+- 当前设备已实测并确认“顺手”；桌面上的“手柄拼音”是测试页，任何文本框都可调用。
+
+已知限制：MVP 按词输入，不做长句切分/智能联想/用户词频；多音字以 CC-CEDICT 为准；
+没有 T9/手写/语音/触摸键盘。
+
 ## 涉及路径
 
 | 内容 | 镜像内路径 | 分区 |
@@ -112,6 +131,9 @@ Android SAF 授权，shell/appops 不能替代。授权后平台会自动扫描�
 | 返回键助手 | `/system/bin/ngp-back-helper.sh` | p4 |
 | 返回键服务 | `/system/etc/init/ngp-back-helper.rc` | p4 |
 | WiFi 看门狗 v2 | `/vendor/bin/rg52-wifi-watchdog.sh`（p5 内 `/bin/...`） | p5 |
+| 手柄拼音 IME | `/system/app/NgpIme/NgpIme.apk` | p4 |
+| IME 默认修正 | `/vendor/bin/ngp-fixup.sh`（p5 内 `/bin/...`） | p5 |
+| WiFi/IME 加固 | `/vendor/bin/rg52-wifi-fix.sh`（p5 内 `/bin/...`） | p5 |
 | 3DS 种子 SQL | `/system/etc/azahar-nano/seed3ds.sql` | p4 |
 | Daijisho 种子脚本 | `/system/bin/ngp-seed-daijisho.sh` | p4 |
 | Daijisho 种子服务 | `/system/etc/init/ngp-seed-daijisho.rc` | p4 |

@@ -8,3 +8,4 @@
 *.ko
 *.so
 .release/
+!image_build/ngp-ime.apk

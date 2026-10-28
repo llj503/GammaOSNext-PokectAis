@@ -66,6 +66,13 @@ dbg "sif /system/app/AzaharSf/oat/arm64/AzaharSf.odex mode 0100644"
 dbg "write $S/system/app/AzaharSf/oat/arm64/AzaharSf.vdex /system/app/AzaharSf/oat/arm64/AzaharSf.vdex"
 dbg "sif /system/app/AzaharSf/oat/arm64/AzaharSf.vdex mode 0100644"
 
+# Gamepad-first Pinyin IME (source: llj503/ngp-pinyin-ime)
+dbg "mkdir /system/app/NgpIme"
+dbg "write $ROOT/image_build/ngp-ime.apk /system/app/NgpIme/NgpIme.apk"
+dbg "sif /system/app/NgpIme/NgpIme.apk mode 0100644"
+dbg "sif /system/app/NgpIme/NgpIme.apk uid 0"
+dbg "sif /system/app/NgpIme/NgpIme.apk gid 0"
+
 dbg "mkdir /system/etc/azahar-nano"
 dbg "write $S/system/etc/azahar-nano/cheats3ds.zip /system/etc/azahar-nano/cheats3ds.zip"
 dbg "sif /system/etc/azahar-nano/cheats3ds.zip mode 0100644"
@@ -144,6 +151,16 @@ dbg5 "sif /bin/rg52-wifi-watchdog.sh mode 0100755"
 dbg5 "sif /bin/rg52-wifi-watchdog.sh uid 0"
 dbg5 "sif /bin/rg52-wifi-watchdog.sh gid 2000"
 
+# IME defaults: both boot scripts honor persist.rg52.ime and prefer the
+# bundled gamepad IME when it is installed (AOSP Leanback stays as fallback).
+for f in ngp-fixup.sh rg52-wifi-fix.sh; do
+    dbg5 "rm /bin/$f"
+    dbg5 "write $ROOT/image_build/$f /bin/$f"
+    dbg5 "sif /bin/$f mode 0100755"
+    dbg5 "sif /bin/$f uid 0"
+    dbg5 "sif /bin/$f gid 2000"
+done
+
 echo "== p4 space =="
 debugfs -R "stats" "$P4" 2>/dev/null | grep -E "Free blocks|Free inodes"
 echo "== p3 /azahar =="
@@ -153,11 +170,15 @@ for f in /system/bin/gammaos-nano /system/bin/azahar-nano /system/bin/azahar-nan
          /system/app/AzaharSf/AzaharSf.apk /system/etc/init/azahar-nano.rc \
          /system/bin/ngp-back-helper.sh /system/etc/init/ngp-back-helper.rc \
          /system/etc/azahar-nano/config.ini /system/etc/azahar-nano/seed3ds.sql \
-         /system/bin/ngp-seed-daijisho.sh /system/etc/init/ngp-seed-daijisho.rc; do
+         /system/bin/ngp-seed-daijisho.sh /system/etc/init/ngp-seed-daijisho.rc \
+         /system/app/NgpIme/NgpIme.apk; do
     printf '%s: ' "$f"
     debugfs -R "stat $f" "$P4" 2>/dev/null | grep -oE "Size: [0-9]+" | head -1
 done
-echo "== p5 watchdog =="
-debugfs -R "stat /bin/rg52-wifi-watchdog.sh" "$P5" 2>/dev/null | grep -oE "Size: [0-9]+|Mode: [0-9]+" | head -2
+echo "== p5 files =="
+for f in /bin/rg52-wifi-watchdog.sh /bin/ngp-fixup.sh /bin/rg52-wifi-fix.sh; do
+    printf '%s: ' "$f"
+    debugfs -R "stat $f" "$P5" 2>/dev/null | grep -oE "Size: [0-9]+" | head -1
+done
 echo "== sha256 =="
 sha256sum "$OUT"

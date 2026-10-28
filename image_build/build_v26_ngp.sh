@@ -4,10 +4,11 @@
 # This is the NGP45HT counterpart of build_v24f.sh, which targets Pocket AIS.
 # The two boards differ in ways that matter here, so do not mix them up:
 #
-#   * The launcher is the Leanback TV launcher, not Daijishō. There is no
-#     com.magneticchen.daijishou database, so no first-boot platform seed is
-#     needed -- gammaos-nano's XMB shell scans /storage/emulated itself and
-#     shows a "Nintendo 3DS" system on its own.
+#   * The default launcher is the Leanback TV launcher, not Daijishō; the XMB
+#     shell scans /storage/emulated itself and shows "Nintendo 3DS". If the
+#     user installs Daijishō, the optional ngp_seed_daijisho service adds the
+#     3DS platform/player once its database appears; otherwise it times out
+#     harmlessly and never touches the user's library.
 #   * The 3DS core and the AdrenoTools hooks go to the boot partition (p3)
 #     under /azahar and are staged into /data at boot by azahar-nano-setup.sh.
 #     /system has only ~14 MB free and the core alone is 38 MB, so it cannot
@@ -105,6 +106,25 @@ dbg "sif /system/etc/init/ngp-back-helper.rc mode 0100644"
 dbg "sif /system/etc/init/ngp-back-helper.rc uid 0"
 dbg "sif /system/etc/init/ngp-back-helper.rc gid 0"
 
+# Optional Daijisho seed: only if the user installs Daijisho. Inserts the 3DS
+# platform + azahar player if missing; never replaces the user's database.
+dbg "write $ROOT/image_build/seed3ds.sql /system/etc/azahar-nano/seed3ds.sql"
+dbg "sif /system/etc/azahar-nano/seed3ds.sql mode 0100644"
+dbg "sif /system/etc/azahar-nano/seed3ds.sql uid 0"
+dbg "sif /system/etc/azahar-nano/seed3ds.sql gid 0"
+
+dbg "rm /system/bin/ngp-seed-daijisho.sh"
+dbg "write $ROOT/image_build/ngp-seed-daijisho.sh /system/bin/ngp-seed-daijisho.sh"
+dbg "sif /system/bin/ngp-seed-daijisho.sh mode 0100755"
+dbg "sif /system/bin/ngp-seed-daijisho.sh uid 0"
+dbg "sif /system/bin/ngp-seed-daijisho.sh gid 2000"
+
+dbg "rm /system/etc/init/ngp-seed-daijisho.rc"
+dbg "write $ROOT/image_build/ngp-seed-daijisho.rc /system/etc/init/ngp-seed-daijisho.rc"
+dbg "sif /system/etc/init/ngp-seed-daijisho.rc mode 0100644"
+dbg "sif /system/etc/init/ngp-seed-daijisho.rc uid 0"
+dbg "sif /system/etc/init/ngp-seed-daijisho.rc gid 0"
+
 # ---------- p3 boot FAT: core + AdrenoTools hooks ----------
 P3="$OUT@@$((P3_OFF*1048576))"
 mdel -i "$P3" ::/rk3562-rg52mini.dtb 2>/dev/null || true
@@ -132,7 +152,8 @@ echo "== p4 files =="
 for f in /system/bin/gammaos-nano /system/bin/azahar-nano /system/bin/azahar-nano-setup.sh \
          /system/app/AzaharSf/AzaharSf.apk /system/etc/init/azahar-nano.rc \
          /system/bin/ngp-back-helper.sh /system/etc/init/ngp-back-helper.rc \
-         /system/etc/azahar-nano/config.ini; do
+         /system/etc/azahar-nano/config.ini /system/etc/azahar-nano/seed3ds.sql \
+         /system/bin/ngp-seed-daijisho.sh /system/etc/init/ngp-seed-daijisho.rc; do
     printf '%s: ' "$f"
     debugfs -R "stat $f" "$P4" 2>/dev/null | grep -oE "Size: [0-9]+" | head -1
 done

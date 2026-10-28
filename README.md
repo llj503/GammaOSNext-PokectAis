@@ -47,6 +47,7 @@ Pocket AIS 和 NGP45HT 是两台机器，直接套用会出问题：
 
 - **3DS 默认大屏布局**：镜像种入 `layout_option=2` 的默认 `config.ini`，避免首次启动说明在下屏、上屏黑屏；游戏运行中长按 Back 2 秒退出。
 - **Daijisho 返回键助手**：修 Daijisho 1.8.1 游戏列表里 B/Back 单按不返回的问题，只在 Library 页补键。
+- **Daijisho 3DS 平台种子**：如果用户自己装了 Daijisho，开机服务会自动补 Nintendo 3DS 平台和 azahar-nano player（不覆盖现有库）；ROM 目录仍需手动 + Paths 授权。
 - **WiFi 看门狗 v2**：AIC8800DC USB 假死后按“WiFi 栈 → USB 重新枚举 → 重载驱动”恢复，替换 vendor 里的 v1。
 
 实现和路径见 [docs/ngp45ht-hotfixes.md](docs/ngp45ht-hotfixes.md)。

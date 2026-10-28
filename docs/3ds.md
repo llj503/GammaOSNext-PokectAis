@@ -38,3 +38,4 @@ Pocket AIS 和 RG52mini 是同一套 RK3562/Mali-G52 硬件：vendor 的 `libGLE
 - 首次启动说明画在下屏；旧镜像默认 `layout_option=1`（只显示上屏）会像黑屏。v26 构建种入 `layout_option=2` 的默认配置，旧镜像可手动改，详见 `ngp45ht-hotfixes.md`。
 - 游戏运行中退出：**长按 Back 约 2 秒**（单按/双击不退）。
 - Daijisho 游戏列表的 Back/B 返回由 `ngp_back_helper` 修正。
+- 如果自己装了 Daijisho，`ngp_seed_daijisho` 会自动补 3DS 平台/player（不覆盖库）；ROM 目录仍需按一次 + Paths 授权。

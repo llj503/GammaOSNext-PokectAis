@@ -1,0 +1,12 @@
+# NGP45HT — optional Daijishō 3DS platform seed
+# Only runs if Daijishō is installed and creates its database; inserts the 3DS
+# platform/player if missing, then exits. Does not replace the user's library.
+service ngp_seed_daijisho /system/bin/sh /system/bin/ngp-seed-daijisho.sh
+    class late_start
+    user root
+    group root
+    oneshot
+    disabled
+
+on property:sys.boot_completed=1
+    start ngp_seed_daijisho

@@ -1,6 +1,6 @@
 # NGP45HT v26 追加修正（2026-10-28）
 
-以下三项是在 NGP45HT（RK3562 / 2GB / 1024x768）的 v26 镜像上实测后补的，
+以下四项是在 NGP45HT（RK3562 / 2GB / 1024x768）的 v26 镜像上实测后补的，
 均已接入 `image_build/build_v26_ngp.sh`。
 
 ## 1. 3DS 默认大屏布局（修“黑屏”）
@@ -86,6 +86,24 @@ vendor 里的 v1 每 300 秒 `rmmod/insmod` 一次，但恢复后经常留下 `w
   或长时间离网时不折腾。
 - 日志：`/data/local/tmp/rg52-wifi-watchdog.log`。
 
+## 4. Daijisho 3DS 平台种子（可选）
+
+NGP45HT 镜像默认还是 Leanback，不预装 Daijisho。用户自己装了 Daijisho 后，
+`ngp_seed_daijisho` 服务会等它的数据库出现（最长 1 小时），然后执行
+`seed3ds.sql`：
+
+- 只在 `PlatformEntity` 里没有 `unique_id='3ds'` 时插入 Nintendo 3DS 平台；
+- 同一批插入 azahar-nano 播放器和备选播放器；
+- **不替换**用户的 Daijisho 数据库，不删除现有平台/游戏；
+- 给新平台补一张壁纸（从已有平台壁纸复制）；
+- 打标记 `/data/.azahar-3ds-seeded`，之后不再执行。
+
+ROM 目录仍然需要用户在 3DS 平台按一次 **+ Paths** 选 `ROMs/n3ds`；这是
+Android SAF 授权，shell/appops 不能替代。授权后平台会自动扫描出游戏。
+
+日志：`/data/system/ngp-seed.log`。如果 Daijisho 是在服务超时后才安装的，
+重启一次即可重跑。
+
 ## 涉及路径
 
 | 内容 | 镜像内路径 | 分区 |
@@ -94,5 +112,8 @@ vendor 里的 v1 每 300 秒 `rmmod/insmod` 一次，但恢复后经常留下 `w
 | 返回键助手 | `/system/bin/ngp-back-helper.sh` | p4 |
 | 返回键服务 | `/system/etc/init/ngp-back-helper.rc` | p4 |
 | WiFi 看门狗 v2 | `/vendor/bin/rg52-wifi-watchdog.sh`（p5 内 `/bin/...`） | p5 |
+| 3DS 种子 SQL | `/system/etc/azahar-nano/seed3ds.sql` | p4 |
+| Daijisho 种子脚本 | `/system/bin/ngp-seed-daijisho.sh` | p4 |
+| Daijisho 种子服务 | `/system/etc/init/ngp-seed-daijisho.rc` | p4 |
 
 `build_v26_ngp.sh` 里的分区偏移：p3 16 MiB、p4 116 MiB、p5 3516 MiB。

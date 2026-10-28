@@ -32,8 +32,16 @@ GammaOS Next（Android 14 / LineageOS 21）在 Pocket AIS（XIFAN NGP45HT，RK35
 
 - 3DS 只走 Vulkan；OpenGL ES 在 Mali-G52 上不可用。
 - azahar-nano 的 core 必须和 4 个 AdrenoTools hook 库在同一目录：`libhook_impl.so`、`libmain_hook.so`、`libfile_redirect_hook.so`、`libgsl_alloc_hook.so`。本移植把它们放在 `/data`，由 p3 的 `/azahar` 在开机时复制，并设置 `persist.gammaos.azahar_nano.core`。
+- core 放在 `/data` 还有第二个更硬的理由：core 有 38 MB，而 `/system` 只剩约 14 MB，根本塞不进去。`/vendor` 也不行——软链会被 linker 以 realpath 不在 permitted paths 拒绝。
 - 上游 RG52mini v1.14 里的 Turnip/Adreno 610 驱动包与 Mali 无关，不使用。
 - 更多细节见 `docs/3ds.md`。
+
+## 与 NGP45HT 的差异
+
+Pocket AIS 和 NGP45HT 是两台机器，直接套用会出问题：
+
+- **外部功放接法不同。** Pocket AIS 是 `hp2extamplifier` + `hp-ctl-gpios`，功放挂在 RK817 的 HP 路径上，所以 `patch_audio_hal.py` 把 HAL 的 `SPK` 改成 `HP` 才有声。NGP45HT 是 `spk-ctl-gpios = <&gpio0 RK_PA7>`，功放挂在 SPK 路径上——套用这个补丁会让功放 GPIO 不再被拉起，反而失能。
+- **面板时序不同。** 两机的 panel-init-sequence 完全一致（2393 字节，md5 `e6cb420c…`），分辨率同为 1024x768，但时序参数不同：本仓 61.0 MHz / hfp 90 / hs 80 / hbp 80（约 60.8 Hz），NGP45HT 52.134144 MHz / hfp 32 / hs 20 / hbp 20（约 61.7 Hz）。
 
 ## 构建
 

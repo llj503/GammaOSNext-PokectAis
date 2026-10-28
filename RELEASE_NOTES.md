@@ -5,4 +5,10 @@ Nintendo 3DS 和 DS 现在都能在这台 Mali 机器上用了。v24f 修了首�
 3. 首次刷机后把 3DS ROM 放回 ROMs/n3ds，在 3DS 平台按一次 + Paths；授权一次后一直有效。DS 游戏从 GammaOS Nano 壳里的 drastic-nano 启动。
 4. 已知：蓝牙未启用；Windows 上 MTP 偶发驱动 Code 19；镜像不含用户数据、ROM 和存档。
 
-镜像 SHA256 见 SHA256SUMS-v24f.txt。
+镜像：pocketAis-GammaOS-20261027-v24f.img.xz，1,814,373,412 B
+SHA256：60b8bb9c65abd1116e61019ed6533b7735f1de8329b954efb0869ff4f80f3d3f
+
+原始镜像：5,451,564,032 B
+SHA256：9e4c483647c6a0242ddbb4d62ce4953ed1d199c9711ecacdf4e2074a12215d47
+
+校验文件见 SHA256SUMS-v24f.txt。

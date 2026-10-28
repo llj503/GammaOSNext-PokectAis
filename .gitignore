@@ -1,0 +1,10 @@
+*.img
+*.img.*
+*.xz
+*.gz
+*.zip
+*.apk
+*.zst
+*.ko
+*.so
+.release/

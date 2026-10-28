@@ -43,6 +43,14 @@ Pocket AIS 和 NGP45HT 是两台机器，直接套用会出问题：
 - **外部功放接法不同。** Pocket AIS 是 `hp2extamplifier` + `hp-ctl-gpios`，功放挂在 RK817 的 HP 路径上，所以 `patch_audio_hal.py` 把 HAL 的 `SPK` 改成 `HP` 才有声。NGP45HT 是 `spk-ctl-gpios = <&gpio0 RK_PA7>`，功放挂在 SPK 路径上——套用这个补丁会让功放 GPIO 不再被拉起，反而失能。
 - **面板时序不同。** 两机的 panel-init-sequence 完全一致（2393 字节，md5 `e6cb420c…`），分辨率同为 1024x768，但时序参数不同：本仓 61.0 MHz / hfp 90 / hs 80 / hbp 80（约 60.8 Hz），NGP45HT 52.134144 MHz / hfp 32 / hs 20 / hbp 20（约 61.7 Hz）。
 
+### NGP45HT v26 追加修正
+
+- **3DS 默认大屏布局**：镜像种入 `layout_option=2` 的默认 `config.ini`，避免首次启动说明在下屏、上屏黑屏；游戏运行中长按 Back 2 秒退出。
+- **Daijisho 返回键助手**：修 Daijisho 1.8.1 游戏列表里 B/Back 单按不返回的问题，只在 Library 页补键。
+- **WiFi 看门狗 v2**：AIC8800DC USB 假死后按“WiFi 栈 → USB 重新枚举 → 重载驱动”恢复，替换 vendor 里的 v1。
+
+实现和路径见 [docs/ngp45ht-hotfixes.md](docs/ngp45ht-hotfixes.md)。
+
 ## 构建
 
 `image_build/` 里是这台机器上实际使用的脚本，需要在 WSL 下用 `debugfs`、`mtools`、`xz`。脚本开头的 `G=/mnt/f/pocketAis/gammaos` 是本机路径，按自己的目录改。

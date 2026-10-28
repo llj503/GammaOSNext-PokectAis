@@ -32,3 +32,9 @@ Pocket AIS 和 RG52mini 是同一套 RK3562/Mali-G52 硬件：vendor 的 `libGLE
 - Vulkan 1.3.283，Mali 扩展完整。
 - 菜单/轻场景 59.9 fps；标题动画约 44–50 fps（stock 频率，CPU 2.0GHz / GPU 900MHz）。
 - 3DS core 37,943,712 B；hooks 共约 290 KB。
+
+## NGP45HT 追加
+
+- 首次启动说明画在下屏；旧镜像默认 `layout_option=1`（只显示上屏）会像黑屏。v26 构建种入 `layout_option=2` 的默认配置，旧镜像可手动改，详见 `ngp45ht-hotfixes.md`。
+- 游戏运行中退出：**长按 Back 约 2 秒**（单按/双击不退）。
+- Daijisho 游戏列表的 Back/B 返回由 `ngp_back_helper` 修正。

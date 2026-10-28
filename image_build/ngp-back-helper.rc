@@ -1,0 +1,10 @@
+# NGP45HT — Daijisho back-key helper
+# Daijisho 1.8.1 的平台游戏列表里单按 Back/B 不返回；助手在 Library 页补一次 Back。
+service ngp_back_helper /system/bin/sh /system/bin/ngp-back-helper.sh
+    class late_start
+    user root
+    group root
+    disabled
+
+on property:sys.boot_completed=1
+    start ngp_back_helper

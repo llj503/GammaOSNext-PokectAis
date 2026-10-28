@@ -31,6 +31,20 @@ if [ ! -d "$SRC" ]; then
     exit 0
 fi
 
+# Seed the default config once so the 3DS screens default to Large Screen
+# (layout_option=2). Without it the core creates layout_option=1 (single
+# screen, top only) and the first-boot intro -- which lives on the bottom
+# screen -- looks like a permanent black screen on NGP45HT.
+CFG=/data/system/azahar-nano/config/config.ini
+if [ ! -s "$CFG" ]; then
+    mkdir -p "$(dirname "$CFG")"
+    if cp -f /system/etc/azahar-nano/config.ini "$CFG" 2>/dev/null; then
+        chmod 0644 "$CFG"
+        chown root:root "$CFG" 2>/dev/null
+        echo "seeded azahar config (layout 2)"
+    fi
+fi
+
 if [ ! -s "$DST/azahar-core.so" ]; then
     cp -f "$SRC/libazahar-nano-core.so" "$DST/azahar-core.so" || exit 0
     chmod 0644 "$DST/azahar-core.so"

@@ -1,3 +1,13 @@
+## NGP45HT v26 追加修正（2026-10-28）
+
+这三项已接入 `image_build/build_v26_ngp.sh`，详见 `docs/ngp45ht-hotfixes.md`：
+
+1. **3DS 默认大屏布局**：`azahar` 默认 `layout_option=1`（只显示上屏），首次启动说明在下屏，看起来像黑屏。镜像现在种入 `layout_option=2` 的默认 `config.ini`。游戏运行中长按 Back 2 秒退出。
+2. **Daijisho 返回键助手**：Daijisho 1.8.1 游戏列表单按 Back/B 不返回；`ngp_back_helper` 只在 Library 页补一次 Back（B 补两次），单按即可返回。
+3. **WiFi 看门狗 v2**：AIC8800DC USB 假死后，v1 重载驱动常留下 wlan0 DOWN；v2 按“重启 WiFi 栈 → USB 重新枚举 → 重载驱动”恢复，并要求实际拿到 IP + 网关 ping 通。脚本替换 p5 的 `/bin/rg52-wifi-watchdog.sh`。
+
+---
+
 Nintendo 3DS 和 DS 现在都能在这台 Mali 机器上用了。v24f 修了首次开机自动写 3DS 平台的等待问题。
 
 1. 基于官方 NGP45HT v24（GammaOS Next Core 1.4.4），适配 Pocket AIS：ro520c DTB、1024x768 屏、AIC8800D80 SDIO WiFi、RK817 音频、A/B 按键。

@@ -8,3 +8,4 @@
 *.bmp binary
 *.dtb binary
 *.db binary
+*.ini text eol=lf

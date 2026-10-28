@@ -1,0 +1,10 @@
+* text=auto
+*.sh text eol=lf
+*.rc text eol=lf
+*.py text eol=lf
+*.conf text eol=lf
+*.md text eol=lf
+*.sql text eol=lf
+*.bmp binary
+*.dtb binary
+*.db binary

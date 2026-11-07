@@ -1,6 +1,18 @@
 #!/system/bin/sh
-# NGP45HT (RK3562) — 开机一次性加固：WiFi 设置 + 输入法 + AIC8800DC USB 电源管理
+# Pocket AIS (RK3562) — 开机一次性加固：WiFi 设置
 # 由 /vendor/etc/init/rg52-wifi-fix.rc 在 sys.boot_completed=1 时执行（oneshot，root）
+#
+# 与 NGP45HT 版的两处差异：
+#   * 输入法段整段删掉 —— 现在由 ngp-fixup.sh 单独负责（它要处理
+#     enabled_input_methods 的写入顺序、等 rg52-ime.sh 的 60 秒循环、
+#     以及 ngp-pinyin 的无障碍按键过滤）。两个脚本都写 default_input_method
+#     只会互相抢，终态取决于谁后跑。
+#   * AIC8800DC 的 USB 电源管理段删掉 —— 本机 WiFi 在 SDIO 上
+#     （wlan0 -> mmc2:6721:1，驱动 aic8800_fdrv/aic8800_bsp），
+#     /sys/bus/usb 里没有 a69c 设备，那个循环只会白等 30 秒再打一条 WARN。
+#     USB 挂起 latch 是 NGP45HT 特有的故障，本机没有观测到对应的 SDIO 问题，
+#     所以不预防性地改 power/control（会改变功耗行为）；真断了由
+#     rg52-wifi-watchdog-sdio.sh 按阶梯恢复。
 
 LOG=/data/local/tmp/rg52-wifi-fix.log
 
@@ -16,45 +28,14 @@ log "settings: sleep=$(settings get global wifi_sleep_policy)" \
     "scan_always=$(settings get global wifi_scan_always_enabled)" \
     "cc=$(settings get global wifi_country_code)"
 
-# ---- 2. 输入法：优先持久化选择，没有则手柄拼音 / AOSP ----
-# 原默认的 LeanKeyKeyboard 在 WiFi 密码框里会崩（IME 窗口 invalid token），
-# 密码输不进去、连接根本发不出去。优先使用 persist.rg52.ime（用户选择），
-# 其次使用镜像自带的“手柄拼音”，未安装才回退 AOSP leanback。
-AOSP_IME=com.android.inputmethod.leanback/.service.LeanbackImeService
-IME_ID=$(getprop persist.rg52.ime)
-if [ -z "$IME_ID" ]; then
-    if pm path com.llj.ngpime >/dev/null 2>&1; then
-        IME_ID=com.llj.ngpime/.NgpImeService
-    else
-        IME_ID=$AOSP_IME
-    fi
-fi
-setprop persist.rg52.ime "$IME_ID"
-ime enable "$IME_ID" 2>/dev/null
-settings put secure default_input_method "$IME_ID"
-log "ime default=$(settings get secure default_input_method)"
-
-# ---- 3. AIC8800DC (USB a69c:88dc) 电源管理：禁止挂起 ----
-# 驱动在链路挂起后会把自己 latch 成 "usb disconnected"，之后所有扫描返回 busy，
-# 表现就是 WiFi 整个消失。这里把该设备的 runtime PM 永久关掉。
-n=0
-while [ $n -lt 30 ]; do
-    for d in /sys/bus/usb/devices/*/; do
-        if grep -q "a69c" "$d/idVendor" 2>/dev/null; then
-            echo on       > "$d/power/control" 2>/dev/null
-            echo disabled > "$d/power/wakeup"  2>/dev/null
-            log "usb pm: ${d} vid=$(cat $d/idVendor 2>/dev/null):$(cat $d/idProduct 2>/dev/null)" \
-                "control=$(cat $d/power/control 2>/dev/null)" \
-                "wakeup=$(cat $d/power/wakeup 2>/dev/null)"
-            n=99
-            break
-        fi
-    done
-    [ "$n" -eq 99 ] && break
-    sleep 1
-    n=$((n + 1))
+# ---- 2. 记录 WiFi 硬件身份，便于事后看日志判断是哪颗芯片 ----
+# 板子修订 A 用 RK915、修订 B 用 AIC8800D80，共用一个 SDIO 槽。
+for fn in /sys/bus/sdio/devices/*/; do
+    [ -e "$fn/driver" ] || continue
+    log "sdio: $(basename "$fn") drv=$(basename "$(readlink "$fn/driver")")" \
+        "pm=$(cat "$fn/power/control" 2>/dev/null)"
 done
-[ "$n" -ne 99 ] && log "WARN: AIC usb device (vid a69c) not found"
+log "modules: $(grep -oE '^(aic8800_fdrv|aic8800_bsp|rk915) ' /proc/modules 2>/dev/null | tr -d ' ' | tr '\n' ' ')"
 
 log "=== done ==="
 exit 0

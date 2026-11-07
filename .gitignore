@@ -9,3 +9,5 @@
 *.so
 .release/
 !image_build/ngp-ime.apk
+!image_build/LANGOS.apk
+!image_build/emulators/*.apk

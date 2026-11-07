@@ -1,3 +1,39 @@
+## Pocket AIS v43（2026-11-07）
+
+把 NGP45HT 从 v24 到 v42 的改动里能用在 Pocket AIS 上的部分移植过来。两台机器
+同 SoC、同分辨率，但音频功放接线、面板时序、WiFi 总线不同，所以是逐项适配。
+每一项的取舍和实测证据见 `docs/v43-pocketais.md`。
+
+1. **桌面切到 LANGOS 3.7.1**：内置为 system app，开机自动设为 home 并授予存储权限；
+   ROM 放在 `/storage/emulated/0/ROMs`，LANGOS 直接扫描，不再需要 SAF + Paths。
+2. **手柄拼音 IME**：内置 [ngp-pinyin-ime](https://github.com/llj503/ngp-pinyin-ime) 并优先作为默认；
+   修复升级路径——v24f 的 `rg52-wifi-fix.sh` 曾把 `persist.rg52.ime` 写成 AOSP
+   leanback，新镜像第一次开机识别并改回手柄拼音。同时启用 0.1.1 新增的
+   `NgpKeyFilterService` 无障碍服务（Flutter 应用里硬件键被引擎吃掉的问题）。
+3. **模拟器首装**：NetherSX2、Azahar 官方版 2126.2、ARMSX2 2.9.2（legacy armv8.0，
+   armv8.2 在 Cortex-A53 上 SIGILL）。装进 `/data/app`，可正常卸载；卸载记录用
+   `/data/ngp/emu-installed/<包名>` 保留。
+4. **手感与显示**：鼠标模式改用中文 Toast（`persist.rg52.mouse_flash=0` 关掉整屏
+   反色闪烁）；手柄 re-hid 假死开机自愈；RetroArch 补简体中文和单文件 CJK ttf
+   （`.ttc` 不被 stb_truetype 支持，原 `fix_ra_font.sh` / `ngp-fixup_new3.sh` 已删除）；
+   去掉 316/704 两个 remap。
+5. **WiFi 看门狗重写为 SDIO 版**：本机是 AIC8800D80 SDIO，NGP45HT 的 USB 版在本机
+   空转。恢复阶梯改为 WiFi 栈 → SDIO function 重新枚举 → 只重载**当前在用**的芯片
+   驱动（两颗芯片共用 SDIO 槽和电源脚，绝不依次加载）。
+6. **3DS**：core 复制改为按大小比对，镜像升级后 `/data` 不再留旧 core；
+   `layout_option=2` 的大屏默认布局保留。
+7. **p4 空间**：payload 约 152 MiB 放在 p4。本机 p5 只有 254.7 MiB 且已用
+   248 MiB，没法像 NGP45HT 那样扩 p5；但 p4 的 ext4 文件系统当初只建到
+   3003 MiB，分区本身是 3400 MiB，脚本用 `resize2fs` 收回这约 397 MiB 的
+   历史空隙。不改 GPT，不移动 p5..p9，也不占 userdata。
+8. **不移植**：HDMI 相关、摇杆/电源灯、`adc-keys-ngp.kl` / `ngp-navkey.sh`（本机
+   没有那些键，音量键不能对调）、EEROMS 短链 / TF2 双 bind（单卡槽）。
+   **禁止**：NGP45HT 的 SPK 音频补丁、DTB、面板时序。
+
+镜像由 `image_build/build_v43_pocketais.sh` 从 v24f 镜像拼出，发布时另附 SHA256。
+
+---
+
 ## NGP45HT v26 追加修正（2026-10-28）
 
 这三项已接入 `image_build/build_v26_ngp.sh`，详见 `docs/ngp45ht-hotfixes.md`：

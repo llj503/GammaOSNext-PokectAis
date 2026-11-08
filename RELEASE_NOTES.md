@@ -30,7 +30,8 @@
    没有那些键，音量键不能对调）、EEROMS 短链 / TF2 双 bind（单卡槽）。
    **禁止**：NGP45HT 的 SPK 音频补丁、DTB、面板时序。
 
-镜像由 `image_build/build_v43_pocketais.sh` 从 v24f 镜像拼出，发布时另附 SHA256。
+镜像由 `image_build/build_v43_pocketais.sh` 从 v24f 镜像拼出，2026-11-08 已构建
+`pocketAis-GammaOS-20261108-v43.img`（sha256 `7ac47811…2c4f50`），发布时另附完整 SHA256。
 
 ---
 

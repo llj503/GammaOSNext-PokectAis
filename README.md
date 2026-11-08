@@ -83,8 +83,8 @@ Pocket AIS 和 NGP45HT 是两台机器，直接套用会出问题：
 LANGOS、IME 和三个模拟器 APK 约 152 MiB。Pocket AIS 的 p5 只有 254.7 MiB 且已
 用满 248 MiB，不像 NGP45HT 那样能扩 p5，所以这些 payload 放 p4。p4 的 ext4
 文件系统当初只建到 3003 MiB，分区本身是 3400 MiB，`build_v43_pocketais.sh` 用
-`resize2fs` 把这段约 397 MiB 的空隙收回来（实测扩后空 465 MiB，装完 payload
-还剩 326 MiB）；不动 GPT，也不碰 p5..p9。
+`resize2fs` 把这段约 397 MiB 的空隙收回来（实测扩后空 423 MiB，装完 payload
+还剩 279 MiB）；不动 GPT，也不碰 p5..p9。
 
 逐项理由、实测数据和被跳过的硬件证据见 [docs/v43-pocketais.md](docs/v43-pocketais.md)。
 

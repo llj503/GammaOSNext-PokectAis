@@ -72,8 +72,9 @@ p4 的文件系统也只剩约 54 MB（`df` 报 27M，差额是 root 保留块�
 | 其余（config / jar / 脚本） | < 50,000 |
 
 所以 `build_v43_pocketais.sh` 第 0 步先 `e2fsck -fy`，再把 p4 文件系统
-`resize2fs` 到分区本来的大小 3400 MiB。实测扩完空闲 465 MiB（397 MiB 空隙 +
-原来的 51 MiB），装完 152 MiB payload 还剩 326 MiB，高于脚本要求的 100 MiB 余量。
+`resize2fs` 到分区本来的大小 3400 MiB。实测扩完空闲 423 MiB（397 MiB 空隙 +
+原来的 51 MiB，扣除新块组的元数据），装完 152 MiB payload 还剩 279 MiB，高于
+脚本要求的 100 MiB 余量。
 
 这一步**不改 GPT**：不删/重建分区，不移动 p5..p8，不动 p9。相比“从 userdata
 (p9) 借 256 MiB 再把 p5..p9 整体后移”，少了 GPT / unique GUID 写坏和平移时
@@ -271,18 +272,20 @@ p4 空闲量；不够 152 MiB + 100 MiB 余量就 `e2fsck -fy` + `resize2fs` 到
 
 ## 十、验证记录
 
-`build_v43_pocketais.sh` 在结构相同的 NGP45HT v38 镜像副本上做过完整端到端运行
-（Pocket AIS 的 v24f base 不在本仓；两者 p4 都是 3003 MiB 文件系统 / 3400 MiB
-分区）：
+`build_v43_pocketais.sh` 先在结构相同的 NGP45HT v38 镜像副本上做了端到端试跑；
+2026-11-08 又在真正的 Pocket AIS v24f base 上完成了一次完整构建：
 
+- base：`pocketAis-GammaOS-20261027-v24f.img`，xz 与解压后的 sha256 都与
+  `image_build/SHA256SUMS-v24f.txt` 一致。
 - 起始：`p4: 3400 MiB partition, 51 MiB free, payload ~152 MiB`，触发回收。
-- 扩完：`Block count 870400`（3400 MiB），空闲 **465 MiB**；装完 payload 后
-  空闲 **326 MiB**，`e2fsck -fn` 干净。
-- payload 全部落位；`LANGOS.apk` 和 `NetherSX2.apk` 用 `debugfs dump` 读回算
-  md5，与源文件一致。
-- p5 脚本、`ngp-toast.jar`、`ngp-mousehint.rc` 都写入并可 `stat` 到。
-- **GPT 未改动**：`sgdisk -v` 报 `No problems found`，空闲扇区数与改动前相同，
-  p5..p9 起点不变。
+- 扩完：`Block count 870400`（3400 MiB），空闲 **423 MiB**；装完 payload 后
+  空闲 **279 MiB**（71316 blocks），`e2fsck -fn` 干净。
+- payload 全部落位；p4 的 7 个文件、p5 的 3 个脚本/配置都用 `debugfs dump`
+  读回算 md5，与源文件一致。
+- **GPT 未改动**：`sgdisk -v` 报 `No problems found`，空闲扇区数 19063 与 base
+  相同，p4/p5 起点仍是 237568 / 7200768。
+- 产物：`pocketAis-GammaOS-20261108-v43.img`，5,451,564,032 字节，sha256
+  `7ac478115e76c079348ab32330134a2461eb05b495275c7cd7f891be9b2c4f50`。
 - `resize2fs` 扩 `shared_blocks` 文件系统成功；`unshare_blocks` 失败（见第二节）。
 - 直接对 `$IMG?offset=N` 跑 `resize2fs` 会截断镜像文件（见第二节的坑），
   脚本已改为抽取 → resize → 写回。

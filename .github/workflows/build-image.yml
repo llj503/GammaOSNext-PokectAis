@@ -18,7 +18,7 @@ on:
       base_sha256:
         description: 底包 xz 的 sha256（留空则不校验）
         required: false
-        default: 60b8bb9c65abd1116e610019ed6533b7735f1de8329b954efb0869ff4f80f3d3f
+        default: 60b8bb9c65abd1116e61019ed6533b7735f1de8329b954efb0869ff4f80f3d3f
       version:
         description: 输出版本号（publish 时同时作为 Release tag）
         required: true
@@ -191,9 +191,12 @@ jobs:
             cat SHA256SUMS.txt
             echo '```'
           } > release-notes.md
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$IMG.xz" SHA256SUMS.txt --clobber
+          # 这里在 $RUNNER_TEMP 下，不是 git 仓库，gh 必须显式指定 --repo
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$IMG.xz" SHA256SUMS.txt --clobber \
+              --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$TAG" "$IMG.xz" SHA256SUMS.txt \
+              --repo "$GITHUB_REPOSITORY" \
               --title "Pocket AIS ${TAG}" --notes-file release-notes.md
           fi

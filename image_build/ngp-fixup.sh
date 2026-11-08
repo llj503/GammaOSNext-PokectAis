@@ -533,39 +533,38 @@ if [ -d "$RA_DIR" ]; then
     fi
 fi
 
-# ⑪ gammapad 按键重映射：手柄 Guide 键(BTN_MODE 316) 保持 HOME，不改成 BACK
+# ⑪ gammapad 按键重映射：手柄 Back -> KEYCODE_BACK，Guide -> KEYCODE_HOME
 #
-# 历史包袱说明（这一整段就是为了收拾它）：
-#   早先这里把 316 重映射成 BACK/HOMEPAGE，理由是「NetherSX2 只认 BACK」。
-#   但那颗键是手柄区的 Guide/HOME 键；结果两套东西同时抢 BACK 语义：
-#     - 316:x    手柄 Guide 键 -> 别的码
-#     - 704:158  BTN_TRIGGER_HAPPY1 -> BACK（swap_start_home 打开时
-#                START 会被改成这个码，等于连 START 也变 BACK）
-#   用户感受到的就是「那颗键有时返回、有时首页、有时毫无作用」。
-#   本机出厂 remap_btn 实测正是 `316:172,704:158`，两条都要清掉。
-#
-# 现在统一成：清掉 remap 里所有 316/704 条目，还给 keylayout 决定。
-# 本机机身侧键只有音量（adc-keys 只报 114/115），没有 NGP45HT 那颗 M 键，
-# 所以不搬 NGP45HT 的 adc-keys-ngp.kl / ngp-navkey.sh。
+# 这一段是 Pocket AIS 专有做法，和 NGP45HT v42 相反，原因：
+#   * NGP45HT 有独立的 M 键（adc-keys 113 -> BACK）和机身返回键
+#     （ngp-navkey.sh），把 remap 里的 316/704 清掉后仍有人兜底；
+#     本机 adc-keys 只有音量，清掉之后**没有任何返回键**。
+#   * 虚拟手柄 "Xbox Wireless Controller" 用的是 /vendor Generic.kl，
+#     里面没有 key 704，316 又是 BUTTON_MODE 不是 HOME；物理 704/316
+#     不重映射就是两个死键。
+#   * 官方 Azahar（org.azahar_emu.azahar）的抽屉菜单只认 KEYCODE_BACK
+#     （EmulationActivity.dispatchKeyEvent），没有 BACK 连菜单都打不开，
+#     更进不去 Gamepad 设置做 Auto-Map。
+#   * LANGOS 的 NativeActivity 对主页上的 BACK 显式吞掉（"返回键在主页，
+#     不退出应用"），恢复 BACK 不会把桌面顶掉。
+# 所以恢复本机出厂的 `316:172,704:158`（只保留其它玩家自定义条目）。
+# gammapad 只在启动时读这个属性，值变了才重启。
 CUR_RM=$(getprop persist.gammaos.gamepad.remap_btn)
-case "$CUR_RM" in
-    *316:*|*704:*)
-        # 摘掉 316:x 与 704:x，保留其它条目
-        REST=$(echo "$CUR_RM" | tr ',' '\n' | grep -vE '^(316|704):' | tr '\n' ',' | sed 's/,$//')
-        if [ -n "$REST" ]; then
-            setprop persist.gammaos.gamepad.remap_btn "$REST"
-        else
-            setprop persist.gammaos.gamepad.remap_btn ""
-        fi
-        log -t $TAG "gamepad remap: dropped 316/704 overrides (Guide stays HOME)"
-        # gammapad 只在启动时读属性，改完要重启它
-        # 注意：重启后物理手柄节点的 evdev 名字会消失是正常现象（它 re-hid 成虚拟手柄），
-        #      不等同于「手柄坏了」，判据看虚拟设备 "Xbox Wireless Controller" 是否在。
-        setprop ctl.restart gammapad 2>/dev/null
-        sleep 2
-        log -t $TAG "gammapad restarted after remap cleanup"
-        ;;
-esac
+NEW_RM=$(echo "$CUR_RM" | tr ',' '\n' | grep -vE '^(316|704):' | grep -v '^$' | tr '\n' ',' | sed 's/,$//')
+if [ -n "$NEW_RM" ]; then
+    NEW_RM="$NEW_RM,704:158,316:172"
+else
+    NEW_RM="704:158,316:172"
+fi
+if [ "$NEW_RM" != "$CUR_RM" ]; then
+    setprop persist.gammaos.gamepad.remap_btn "$NEW_RM"
+    log -t $TAG "gamepad remap: Back->BACK, Guide->HOME ($NEW_RM)"
+    # 注意：重启后物理手柄节点的 evdev 名字会消失是正常现象（它 re-hid 成虚拟手柄），
+    #      不等同于「手柄坏了」，判据看虚拟设备 "Xbox Wireless Controller" 是否在。
+    setprop ctl.restart gammapad 2>/dev/null
+    sleep 2
+    log -t $TAG "gammapad restarted after remap restore"
+fi
 
 # ⑫a LANGOS ROM 根目录。
 #
@@ -660,6 +659,60 @@ install_emu org.azahar_emu.azahar "$EMU_DIR/Azahar-official-2126.2.apk" "azahar-
 # libemucore_4k.so 读游戏序列号时 SIGILL。
 install_emu com.armsx2 "$EMU_DIR/ARMSX2-2.9.2-legacy-armv8.0.apk" armsx2
 
+# ⑫c ARMSX2 输入语义：系统返回键 = 弹出游戏菜单，Home = 回 LANGOS。
+#
+# ARMSX2 2.9.2 的代码默认值是：
+#   input.backOpensMenu=true   短按 Back 打开游戏菜单
+#   ui.holdBackToExit=true     长按 Back 700ms 直接退出（本机没有独立返回键，
+#                              系统返回手势稍慢就会变成退出；改成 false 后
+#                              Back 只弹菜单，不会把游戏关掉）
+#   ui.blockHomeButton=false   Home 不劫持，交给系统 -> LANGOS
+# 只补 prefs 里缺失的键，玩家显式改过的值不动；holdBackToExit 没有 UI 开关，
+# 默认值只写在代码里，prefs 里通常不存在，所以 ARMSX2 首次启动后的下一次开机
+# 就会补上。prefs 由 ARMSX2 首次启动创建；这里只改已存在的文件，不替应用造
+# 文件（app_data_file 的 SELinux 类别由 installd 管，手造容易让应用读不到）。
+AX2_PREFS=/data/data/com.armsx2/shared_prefs/ARMSX2.xml
+if [ -f "$AX2_PREFS" ]; then
+    _ax2_tmp=/data/ngp/armsx2-prefs.$$
+    _ax2_add=""
+    grep -q 'name="input.backOpensMenu"' "$AX2_PREFS" || \
+        _ax2_add="$_ax2_add input.backOpensMenu:true"
+    grep -q 'name="ui.holdBackToExit"' "$AX2_PREFS" || \
+        _ax2_add="$_ax2_add ui.holdBackToExit:false"
+    grep -q 'name="ui.blockHomeButton"' "$AX2_PREFS" || \
+        _ax2_add="$_ax2_add ui.blockHomeButton:false"
+    if [ -n "$_ax2_add" ] && cp -f "$AX2_PREFS" "$_ax2_tmp" 2>/dev/null; then
+        awk -v add="$_ax2_add" '
+            BEGIN { n = split(add, a, " "); added = 0 }
+            /<map *\/>/ && !added {
+                print "<map>"
+                for (i = 1; i <= n; i++) {
+                    split(a[i], kv, ":")
+                    printf "    <boolean name=\"%s\" value=\"%s\" />\n", kv[1], kv[2]
+                }
+                print "</map>"
+                added = 1
+                next
+            }
+            /<\/map>/ && !added {
+                for (i = 1; i <= n; i++) {
+                    split(a[i], kv, ":")
+                    printf "    <boolean name=\"%s\" value=\"%s\" />\n", kv[1], kv[2]
+                }
+                added = 1
+            }
+            { print }
+        ' "$_ax2_tmp" > "$_ax2_tmp.new"
+        if [ -s "$_ax2_tmp.new" ]; then
+            # cat 覆盖原文件，保住 inode 和 installd 挂的 SELinux 标签
+            cat "$_ax2_tmp.new" > "$AX2_PREFS"
+            chmod 660 "$AX2_PREFS" 2>/dev/null
+            log -t $TAG "armsx2: input seeded (Back=menu, no hold-exit, Home->LANGOS)"
+        fi
+        rm -f "$_ax2_tmp" "$_ax2_tmp.new"
+    fi
+fi
+
 # Azahar 官方版性能配置（Mali-G52 Vulkan）：预置到用户目录，首次向导选择该目录即可。
 # graphics_api=2(Vulkan) / use_vsync=0 / resolution_factor=1 / disable_right_eye_render=1
 AZAHAR_HOME=/data/media/0/azahar-emu
@@ -671,6 +724,120 @@ if [ -f "$AZAHAR_CFG" ]; then
     chown -R media_rw:media_rw "$AZAHAR_HOME" 2>/dev/null
     chmod 770 "$AZAHAR_HOME" "$AZAHAR_HOME/config" 2>/dev/null
     chmod 660 "$AZAHAR_HOME/config/config.ini" 2>/dev/null
+fi
+
+# ⑫d Azahar 官方版输入映射：物理 B = 3DS B，摇杆/十字键/肩键全部直通。
+#
+# 官方版 prefs 里没有 InputMapping 时，HotkeyUtility.getButtonSet() 返回空集，
+# 手柄事件一个都到不了 native —— 表现是所有键都没反应，不只是 B。
+# 这里按它自己的 Auto-Map 结果预置（Nintendo 面键 + 轴十字键 + 轴摇杆），
+# 值取自 InputBindingSetting 的 nintendoFaceButtonMappings /
+# commonButtonMappings / stickAxisMappings / dpadAxisMappings：
+#   * 本机 abxy_swap=1，东/右键上报 BUTTON_A，Auto-Map 判定 Nintendo 布局；
+#     物理 B(305 -> KEYCODE_BUTTON_B=97) -> 3DS B(701)。
+#   * 十字键两套都预置：虚拟手柄同时声明 HAT 轴和 BTN_DPAD 键能力，
+#     轴走 AXIS_HAT_X/Y(15/16) -> DPAD(780)，键走 DPAD_UP..RIGHT(19-22)
+#     -> 709..712；实际只会上报其中一种，并存没有副作用。
+#     左右摇杆走 AXIS_X/Y(0/1)、Z/RZ(11/14)。
+#   * BACK 不在这里映射：⑪ 已把物理 Back 还原成 KEYCODE_BACK，Azahar 用它开抽屉。
+# 只在完全没有 InputMapping 时整体预置；玩家做过 Auto-Map 就一律不碰，避免新旧值打架。
+# prefs 由应用首次启动创建，不替它造文件
+# （app_data_file 的 SELinux 类别由 installd 管，手造会读不到）。
+AZ_PREFS=/data/data/org.azahar_emu.azahar/shared_prefs/org.azahar_emu.azahar_preferences.xml
+if [ -f "$AZ_PREFS" ] && ! grep -q 'name="InputMapping_' "$AZ_PREFS"; then
+    _az_tmp=/data/ngp/azahar-prefs.$$
+    _az_ent=/data/ngp/azahar-input.$$
+    cat > "$_az_ent" <<'AZEOF'
+    <int name="InputMapping_HostAxis_96" value="700" />
+    <int name="InputMapping_HostAxis_97" value="701" />
+    <int name="InputMapping_HostAxis_99" value="702" />
+    <int name="InputMapping_HostAxis_100" value="703" />
+    <int name="InputMapping_HostAxis_102" value="773" />
+    <int name="InputMapping_HostAxis_103" value="774" />
+    <int name="InputMapping_HostAxis_104" value="707" />
+    <int name="InputMapping_HostAxis_105" value="708" />
+    <int name="InputMapping_HostAxis_108" value="704" />
+    <int name="InputMapping_HostAxis_109" value="705" />
+    <int name="InputMapping_HostAxis_19" value="709" />
+    <int name="InputMapping_HostAxis_20" value="710" />
+    <int name="InputMapping_HostAxis_21" value="711" />
+    <int name="InputMapping_HostAxis_22" value="712" />
+    <int name="InputMapping_HostAxis_0_GuestButton" value="713" />
+    <int name="InputMapping_HostAxis_0_GuestOrientation" value="0" />
+    <boolean name="InputMapping_HostAxis_0_Inverted" value="false" />
+    <int name="InputMapping_HostAxis_1_GuestButton" value="713" />
+    <int name="InputMapping_HostAxis_1_GuestOrientation" value="1" />
+    <boolean name="InputMapping_HostAxis_1_Inverted" value="false" />
+    <int name="InputMapping_HostAxis_11_GuestButton" value="718" />
+    <int name="InputMapping_HostAxis_11_GuestOrientation" value="0" />
+    <boolean name="InputMapping_HostAxis_11_Inverted" value="false" />
+    <int name="InputMapping_HostAxis_14_GuestButton" value="718" />
+    <int name="InputMapping_HostAxis_14_GuestOrientation" value="1" />
+    <boolean name="InputMapping_HostAxis_14_Inverted" value="false" />
+    <int name="InputMapping_HostAxis_15_GuestButton" value="780" />
+    <int name="InputMapping_HostAxis_15_GuestOrientation" value="0" />
+    <boolean name="InputMapping_HostAxis_15_Inverted" value="false" />
+    <int name="InputMapping_HostAxis_16_GuestButton" value="780" />
+    <int name="InputMapping_HostAxis_16_GuestOrientation" value="1" />
+    <boolean name="InputMapping_HostAxis_16_Inverted" value="false" />
+    <string name="button_a">Button A</string>
+    <string name="button_b">Button B</string>
+    <string name="button_x">Button X</string>
+    <string name="button_y">Button Y</string>
+    <string name="button_l">Button L1</string>
+    <string name="button_r">Button R1</string>
+    <string name="button_zl">Button L2</string>
+    <string name="button_zr">Button R2</string>
+    <string name="button_select">Button Select</string>
+    <string name="button_start">Button Start</string>
+    <string name="button_up">Dpad Up</string>
+    <string name="button_down">Dpad Down</string>
+    <string name="button_left">Dpad Left</string>
+    <string name="button_right">Dpad Right</string>
+    <string name="circlepad_axis_horizontal">Axis 0+</string>
+    <string name="circlepad_axis_vertical">Axis 1-</string>
+    <string name="cstick_axis_horizontal">Axis 11+</string>
+    <string name="cstick_axis_vertical">Axis 14-</string>
+    <string name="dpad_axis_horizontal">Axis 15+</string>
+    <string name="dpad_axis_vertical">Axis 16-</string>
+    <string name="InputMapping_ReverseMapping_button_a">InputMapping_HostAxis_96</string>
+    <string name="InputMapping_ReverseMapping_button_b">InputMapping_HostAxis_97</string>
+    <string name="InputMapping_ReverseMapping_button_x">InputMapping_HostAxis_99</string>
+    <string name="InputMapping_ReverseMapping_button_y">InputMapping_HostAxis_100</string>
+    <string name="InputMapping_ReverseMapping_button_l">InputMapping_HostAxis_102</string>
+    <string name="InputMapping_ReverseMapping_button_r">InputMapping_HostAxis_103</string>
+    <string name="InputMapping_ReverseMapping_button_zl">InputMapping_HostAxis_104</string>
+    <string name="InputMapping_ReverseMapping_button_zr">InputMapping_HostAxis_105</string>
+    <string name="InputMapping_ReverseMapping_button_select">InputMapping_HostAxis_109</string>
+    <string name="InputMapping_ReverseMapping_button_start">InputMapping_HostAxis_108</string>
+    <string name="InputMapping_ReverseMapping_button_up">InputMapping_HostAxis_19</string>
+    <string name="InputMapping_ReverseMapping_button_down">InputMapping_HostAxis_20</string>
+    <string name="InputMapping_ReverseMapping_button_left">InputMapping_HostAxis_21</string>
+    <string name="InputMapping_ReverseMapping_button_right">InputMapping_HostAxis_22</string>
+    <string name="InputMapping_ReverseMapping_circlepad_axis_horizontal_0">InputMapping_HostAxis_0</string>
+    <string name="InputMapping_ReverseMapping_circlepad_axis_vertical_1">InputMapping_HostAxis_1</string>
+    <string name="InputMapping_ReverseMapping_cstick_axis_horizontal_0">InputMapping_HostAxis_11</string>
+    <string name="InputMapping_ReverseMapping_cstick_axis_vertical_1">InputMapping_HostAxis_14</string>
+    <string name="InputMapping_ReverseMapping_dpad_axis_horizontal_0">InputMapping_HostAxis_15</string>
+    <string name="InputMapping_ReverseMapping_dpad_axis_vertical_1">InputMapping_HostAxis_16</string>
+AZEOF
+    if cp -f "$AZ_PREFS" "$_az_tmp" 2>/dev/null; then
+        awk -v f="$_az_ent" '
+            /<\/map>/ && !added {
+                while ((getline line < f) > 0) print line
+                close(f)
+                added = 1
+            }
+            { print }
+        ' "$_az_tmp" > "$_az_tmp.new"
+        if [ -s "$_az_tmp.new" ]; then
+            # cat 覆盖原文件，保住 inode 和 installd 挂的 SELinux 标签
+            cat "$_az_tmp.new" > "$AZ_PREFS"
+            chmod 660 "$AZ_PREFS" 2>/dev/null
+            log -t $TAG "azahar: input mapping seeded (Nintendo face + axis dpad/sticks)"
+        fi
+    fi
+    rm -f "$_az_tmp" "$_az_tmp.new" "$_az_ent"
 fi
 
 # 3DS 内置前端（com.gammaos.azaharsf）动不了：它是 sharedUserId=android.uid.system

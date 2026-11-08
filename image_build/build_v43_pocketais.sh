@@ -9,10 +9,7 @@
 #     use p4 instead: its ext4 filesystem was built at 3003 MiB inside a 3400 MiB
 #     partition, so v43 reclaims that ~397 MiB of slack with resize2fs. No GPT
 #     change, no p5..p9 shift, no userdata loss.
-#   * The default launcher is LANGOS (com.retrofront), installed as a system
-#     app. Daijishō is no longer the home, so the Daijishō seed/back-helper
-#     services inherited from the v24f base are inert (they time out
-#     harmlessly). They are left in place; ngp-fixup.sh sets the home activity.
+#   * LANGOS is the default home; the legacy Daijishō seed must not launch HOME.
 #   * WiFi is SDIO, so the watchdog is rg52-wifi-watchdog-sdio.sh. The USB
 #     AIC8800DC ladder in rg52-wifi-watchdog-v2.sh cannot work here.
 #   * HDMI, stick/power LEDs, adc-keys remap, TF2 binds and the NGP45HT SPK
@@ -37,7 +34,7 @@ HEADROOM_MIB=100
 
 for f in LANGOS.apk ngp-ime.apk emulators/NetherSX2.apk \
          emulators/Azahar-official-2126.2.apk emulators/ARMSX2-2.9.2-legacy-armv8.0.apk \
-         azahar-official-config.ini azahar-nano-setup.sh ngp-fixup.sh \
+         azahar-official-config.ini azahar-nano-setup.sh azahar-seed-daijisho.sh ngp-fixup.sh \
          ngp-ota.sh ngp-mousehint.sh ngp-mousehint.rc ngp-toast.jar \
          rg52-wifi-watchdog-sdio.sh rg52-wifi-fix.sh; do
     [ -s "$IB/$f" ] || { echo "missing payload: $IB/$f" >&2; exit 1; }
@@ -139,6 +136,7 @@ put dbg "$IB/azahar-official-config.ini"               /system/etc/ngp/azahar/co
 
 # 3DS core 的暂存脚本：v43 改成按大小比对，镜像升级时能替换 /data 里的旧 core。
 put dbg "$IB/azahar-nano-setup.sh" /system/bin/azahar-nano-setup.sh 0100755 2000
+put dbg "$IB/azahar-seed-daijisho.sh" /system/bin/azahar-seed-daijisho.sh 0100755 0
 
 # ---------- 2. p5 vendor: 启动脚本 + Toast ----------
 # /vendor/bin 的脚本沿用 build_v26 的 gid 2000 (shell)。
@@ -163,13 +161,15 @@ for f in /system/app/LANGOS/LANGOS.apk \
          /system/etc/ngp/emulators/Azahar-official-2126.2.apk \
          /system/etc/ngp/emulators/ARMSX2-2.9.2-legacy-armv8.0.apk \
          /system/etc/ngp/azahar/config.ini \
-         /system/bin/azahar-nano-setup.sh; do
+         /system/bin/azahar-nano-setup.sh \
+         /system/bin/azahar-seed-daijisho.sh; do
     sz=$(debugfs -R "stat $f" "$P4" 2>/dev/null | sed -n 's/.*Size: \([0-9][0-9]*\).*/\1/p' | head -1)
     printf '%-58s %s bytes\n' "$f" "${sz:-MISSING}"
 done
-# 大 APK 逐字节校验：debugfs dump 回临时文件再算 md5，和源文件比
+# debugfs dump 回临时文件再算 md5，和源文件比。
 for pair in "LANGOS.apk:/system/app/LANGOS/LANGOS.apk" \
-            "emulators/NetherSX2.apk:/system/etc/ngp/emulators/NetherSX2.apk"; do
+            "emulators/NetherSX2.apk:/system/etc/ngp/emulators/NetherSX2.apk" \
+            "azahar-seed-daijisho.sh:/system/bin/azahar-seed-daijisho.sh"; do
     src=${pair%%:*}; dst=${pair#*:}
     rm -f "$tmpx"                       # debugfs dump 不会覆盖已存在的文件
     debugfs -R "dump $dst $tmpx" "$P4" >/dev/null 2>&1

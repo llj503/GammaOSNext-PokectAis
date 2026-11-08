@@ -4,6 +4,7 @@
 # On a fresh flash Daijishō may start long after boot_completed, so wait for
 # its data dir and database instead of using a short fixed timeout.
 PKG=com.magneticchen.daijishou
+pm path "$PKG" >/dev/null 2>&1 || exit 0
 DBDIR=/data/data/$PKG/databases
 DB=$DBDIR/Daijishou.db
 SEED=/system/etc/azahar-nano/daijishou-seed.db
@@ -19,7 +20,6 @@ i=0
 while [ "$i" -lt 720 ]; do
     [ -d /data/data/$PKG ] && [ -f "$DB" ] && break
     if [ $((i % 10)) -eq 0 ]; then
-        am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null 2>&1
         echo "wait $i"
     fi
     i=$((i + 1))
@@ -57,4 +57,3 @@ fi
 touch "$MARK"
 chmod 600 "$MARK"
 echo "seeded uid=$UID"
-am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null 2>&1

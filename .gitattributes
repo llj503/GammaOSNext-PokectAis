@@ -11,5 +11,7 @@
 *.ini text eol=lf
 *.kl text eol=lf
 SHA256SUMS* text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
 *.apk binary
 *.jar binary

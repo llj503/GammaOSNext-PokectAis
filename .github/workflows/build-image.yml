@@ -1,0 +1,199 @@
+name: Build Pocket AIS image (xz)
+
+# 手动触发：从 Release 下载 v24f 底包 → 在 runner 上拼 v43 → 压成 xz。
+# 底包 5.2 GiB 不入库，所以线上从 Release 取（本机流程见 docs/v43-pocketais.md）。
+# 默认只上传 artifact；勾选 publish 才会创建 Release（公开可见）。
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_release:
+        description: 底包所在的 Release tag
+        required: true
+        default: v24f
+      base_asset:
+        description: 底包 asset 文件名
+        required: true
+        default: pocketAis-GammaOS-20261027-v24f.img.xz
+      base_sha256:
+        description: 底包 xz 的 sha256（留空则不校验）
+        required: false
+        default: 60b8bb9c65abd1116e610019ed6533b7735f1de8329b954efb0869ff4f80f3d3f
+      version:
+        description: 输出版本号（publish 时同时作为 Release tag）
+        required: true
+        default: v43
+      script:
+        description: 使用的拼装脚本
+        required: true
+        default: image_build/build_v43_pocketais.sh
+      publish:
+        description: 构建完成后创建 Release 并上传镜像（公开可见）
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 清理 runner 磁盘
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+
+      - name: 安装工具
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gdisk
+          sgdisk --version
+
+      - name: 确定产物名
+        env:
+          VERSION: ${{ inputs.version }}
+        run: echo "IMG=pocketAis-GammaOS-$(date -u +%Y%m%d)-${VERSION}.img" >> "$GITHUB_ENV"
+
+      - name: 下载底包
+        env:
+          BASE_RELEASE: ${{ inputs.base_release }}
+          BASE_ASSET: ${{ inputs.base_asset }}
+          BASE_SHA: ${{ inputs.base_sha256 }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ngp"
+          cd "$RUNNER_TEMP/ngp"
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${BASE_RELEASE}/${BASE_ASSET}"
+          echo "GET $url"
+          curl -fL --retry 3 --retry-delay 5 -o base.img.xz "$url"
+          ls -l base.img.xz
+          if [ -n "${BASE_SHA:-}" ]; then
+            echo "${BASE_SHA}  base.img.xz" | sha256sum -c -
+          fi
+
+      - name: 解压底包
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/ngp"
+          time xz -dc base.img.xz > base.img
+          rm -f base.img.xz
+          ls -l base.img
+
+      - name: 预扩 p4 文件系统（loop 设备）
+        # build_v43_pocketais.sh 的兜底路径要额外抽 3.4 GiB 临时文件再写回；
+        # runner 磁盘紧张，这里先用 loop 设备把 p4 扩到分区大小，脚本就会跳过。
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/ngp"
+          ss=$(sgdisk -p base.img | sed -n 's/^Sector size (logical): *\([0-9][0-9]*\).*/\1/p' | head -1)
+          start=$(sgdisk -i 4 base.img | awk -F': *' '/First sector/ {print $2}' | awk '{print $1}')
+          end=$(sgdisk -i 4 base.img | awk -F': *' '/Last sector/ {print $2}' | awk '{print $1}')
+          off=$(( start * ss ))
+          len=$(( (end - start + 1) * ss ))
+          loop=$(sudo losetup --find --show --offset "$off" --sizelimit "$len" base.img)
+          trap 'sudo losetup -d "$loop" || true' EXIT
+          bs=$(sudo dumpe2fs -h "$loop" 2>/dev/null | sed -n 's/^Block size: *//p')
+          cur=$(sudo dumpe2fs -h "$loop" 2>/dev/null | sed -n 's/^Block count: *//p')
+          want=$(( len / bs ))
+          echo "p4 fs: $cur blocks x $bs; partition holds $want blocks"
+          if [ "$cur" -lt "$want" ]; then
+            rc=0
+            sudo e2fsck -fy "$loop" >/dev/null 2>&1 || rc=$?
+            if [ "$rc" -gt 1 ]; then echo "e2fsck rc=$rc" >&2; exit 1; fi
+            sudo resize2fs "$loop"
+          fi
+          sudo dumpe2fs -h "$loop" 2>/dev/null | grep -E '^Block count|^Free blocks'
+
+      - name: 拼装镜像
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/ngp"
+          time bash "$GITHUB_WORKSPACE/$SCRIPT" base.img "$IMG"
+          rm -f base.img
+          ls -l "$IMG"
+        env:
+          SCRIPT: ${{ inputs.script }}
+
+      - name: 校验产物
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/ngp"
+          sgdisk -v "$IMG" | tail -3
+          off=$(sgdisk -i 4 "$IMG" | awk -F': *' '/First sector/ {print $2}' | awk '{print $1}')
+          e2fsck -fn "$IMG?offset=$((off * 512))" >/dev/null && echo "p4 fs clean"
+          debugfs -R 'stats' "$IMG?offset=$((off * 512))" 2>/dev/null | grep -E 'Block count|Free blocks'
+
+      - name: 压缩为 xz
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/ngp"
+          time xz -T0 -6 -c "$IMG" > "$IMG.xz"
+          sha256sum "$IMG" "$IMG.xz" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          ls -l "$IMG" "$IMG.xz"
+          rm -f "$IMG"
+
+      - name: 上传 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocketais-${{ inputs.version }}-image
+          path: |
+            ${{ runner.temp }}/ngp/*.img.xz
+            ${{ runner.temp }}/ngp/SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+      - name: 写入 job summary
+        run: |
+          {
+            echo "### Pocket AIS ${{ inputs.version }}"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/ngp/SHA256SUMS.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 创建 Release
+        if: ${{ inputs.publish }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.version }}
+          BASE_RELEASE: ${{ inputs.base_release }}
+          BASE_ASSET: ${{ inputs.base_asset }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/ngp"
+          # GitHub 单个 release asset 上限 2 GiB
+          for f in "$IMG.xz" SHA256SUMS.txt; do
+            sz=$(stat -c %s "$f")
+            echo "$f: $sz bytes"
+            if [ "$sz" -ge 2147483648 ]; then
+              echo "$f 超过 GitHub release asset 的 2 GiB 上限" >&2
+              exit 1
+            fi
+          done
+          {
+            echo "Pocket AIS ${TAG}"
+            echo
+            echo "- 底包：[\`${BASE_RELEASE}/${BASE_ASSET}\`](https://github.com/${GITHUB_REPOSITORY}/releases/download/${BASE_RELEASE}/${BASE_ASSET})"
+            echo "- 构建：[\`${{ inputs.script }}\`](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/${{ inputs.script }}) via [run #${GITHUB_RUN_NUMBER}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
+            echo
+            echo '```'
+            cat SHA256SUMS.txt
+            echo '```'
+          } > release-notes.md
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$IMG.xz" SHA256SUMS.txt --clobber
+          else
+            gh release create "$TAG" "$IMG.xz" SHA256SUMS.txt \
+              --title "Pocket AIS ${TAG}" --notes-file release-notes.md
+          fi

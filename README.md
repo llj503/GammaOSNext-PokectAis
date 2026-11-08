@@ -124,6 +124,22 @@ cd image_build
 `build_v43_pocketais.sh` 从 GPT 读分区布局，不写死偏移；`build_v24f.sh` 等旧脚本里仍是
 p3 16 MiB（99 MiB）、p4 116 MiB（3400 MiB）、p5 3516 MiB（254.7 MiB）。
 
+### GitHub Actions 在线构建
+
+`.github/workflows/build-image.yml` 可以在 GitHub 上直接出 xz 镜像，本机不需要
+装 e2fsprogs / gdisk：
+
+1. Actions → *Build Pocket AIS image (xz)* → Run workflow。
+2. 默认从 `v24f` Release 下载 `pocketAis-GammaOS-20261027-v24f.img.xz` 并校验
+   sha256；`version` 决定产物名，如 `pocketAis-GammaOS-20261108-v43.img`。
+3. 构建完把 `*.img.xz` 和 `SHA256SUMS.txt` 传成 artifact（保留 30 天）。
+4. 勾选 `publish` 才会创建 Release 并上传。GitHub 单个 release asset 上限
+   2 GiB，超过时 workflow 直接失败。
+
+runner 只有约 14 GiB 可用空间，workflow 先删 Android SDK / dotnet，再用 loop
+设备把 p4 预扩到分区大小，避开 `build_v43_pocketais.sh` 里抽 3.4 GiB 临时
+文件的兜底路径。
+
 ## 来源
 
 - 官方 GammaOS Next NGP45HT v24 镜像：系统、vendor、kernel、initrd。

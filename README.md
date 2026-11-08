@@ -23,7 +23,8 @@ GammaOS Next（Android 14 / LineageOS 21）在 Pocket AIS（XIFAN NGP45HT，RK35
 
 已发布的 v24f 镜像仍在 Releases：`pocketAis-GammaOS-20261027-v24f.img.xz` 和
 `SHA256SUMS-v24f.txt`。v43 由本仓库的 `image_build/build_v43_pocketais.sh` 从
-v24f 镜像拼出，尚未发布。
+v24f 镜像拼出，已发布 `pocketAis-GammaOS-20261108-v43.img.xz`，校验值见
+`image_build/SHA256SUMS-v43.txt`。
 
 刷写：xz 解压得到 raw 镜像，用 Rufus 的 DD 模式写入 TF 卡。首次启动 userdata 会重置。
 
@@ -44,6 +45,13 @@ v43 起这些 Daijishō 服务变成空转（等不到数据库），无害保�
 v43 把 LANGOS 设为 home 后，LineageOS 的 SetupWizard 不会再运行，`ngp-fixup.sh`
 会自动补 `device_provisioned` / `user_setup_complete`——否则 Android 14 的
 「设置」会以“未 provision”为由一闪而退。
+
+## 本地 OTA
+
+不用重刷整卡的小更新：把 `image_build/make_ota_package.sh` 生成的包目录整个
+拷进掌机 `/sdcard/OTA/`，重启后开机脚本校验 sha256、替换 `/system` 和
+`/vendor` 里的文件并再次重启。用户数据不动。原理、包格式、制作方法和首次
+安装钩子的步骤见 [docs/local-ota.md](docs/local-ota.md)。
 
 ## 3DS 说明
 

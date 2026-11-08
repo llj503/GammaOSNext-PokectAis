@@ -77,6 +77,64 @@ fi
 
 log -t $TAG "start"
 
+# ⓪0 本地 OTA：/sdcard/OTA/update-* 有包就先应用（见 docs/local-ota.md）。
+#     应用成功后 ngp-ota.sh 自己重启，下面各段不会执行；校验失败只写
+#     STATUS.txt，不影响本次开机。没有包时这里只花一次目录判断。
+if [ -x /vendor/bin/ngp-ota.sh ]; then
+    /vendor/bin/ngp-ota.sh
+fi
+
+# ⓪0b 首次开机补装镜像自带的预装应用。
+#
+# 整卡刷机后 /data 是空的，GammaOS 原本靠 /system/bin/setup.sh 在首启时装
+# RetroArch、MiXplorer、Aurora、PPSSPP、DraStic、Flycast、M64Plus。它的触发
+# 条件写在 init.rc 里：
+#   on property:sys.boot_completed=1 && property:persist.gammaos.setupwizard_run=1
+# 而这个属性由 SetupWizard/Nano 的首启流程写入。本机 LANGOS 接管桌面，下面
+# ⓪a 又把设备直接标记为已 provision，SetupWizard 不会走完 —— 结果 setup.sh
+# 一次都不跑，/system/etc 里 183 MB 的 RetroArch APK 和 357 MB 资源包永远
+# 躺着，用户看到的就是"系统里没有 RetroArch"（实测 v43 整卡刷机后就是如此：
+# persist.gammaos.setupwizard_run=0、setupwizard_done=0、/data/setupcompleted
+# 不存在）。
+#
+# 这里补一次：复制 setup.sh，把 APPS_LIST 指向过滤掉 Daijisho 的列表（Daijisho
+# 的 post 钩子会把 home 抢回去），并强制 FRESH_SETUP=0，免得它解包默认 ROM
+# 覆盖用户数据。后台跑，不阻塞下面各段开机修正；setup.sh 成功后会自己创建
+# /data/setupcompleted，之后开机就不再执行。
+#
+# 最多补三次：坏卡上反复解 1.3 GB 会拖垮开机，留三次重试足够了。
+RESTORE_DIR=/data/ngp
+mkdir -p "$RESTORE_DIR" 2>/dev/null
+RA_ATT=$RESTORE_DIR/setup-restore.attempts
+_ra_n=0
+[ -f "$RA_ATT" ] && _ra_n=$(cat "$RA_ATT" 2>/dev/null)
+case "$_ra_n" in ''|*[!0-9]*) _ra_n=0 ;; esac
+if [ ! -e /data/setupcompleted ] \
+   && [ "$_ra_n" -lt 3 ] \
+   && [ -x /system/bin/setup.sh ] \
+   && [ -f /system/etc/gammaos/apps.list ] \
+   && [ "$(getprop persist.gammaos.setupwizard_run 2>/dev/null)" != "1" ] \
+   && [ "$(getprop persist.gammaos.setupwizard_done 2>/dev/null)" != "1" ] \
+   && ! ps -A 2>/dev/null | grep -q '[s]etup\.sh'; then
+    RA_LIST=$RESTORE_DIR/apps-restore.list
+    RA_SCRIPT=$RESTORE_DIR/setup-restore.sh
+    grep -v '^Daijisho|' /system/etc/gammaos/apps.list > "$RA_LIST" 2>/dev/null
+    sed -e "s|^APPS_LIST=.*|APPS_LIST=$RA_LIST|" \
+        -e 's|^FRESH_SETUP=1$|FRESH_SETUP=0|' \
+        /system/bin/setup.sh > "$RA_SCRIPT" 2>/dev/null
+    if [ -s "$RA_LIST" ] && [ -s "$RA_SCRIPT" ] \
+       && grep -q "^APPS_LIST=$RA_LIST$" "$RA_SCRIPT" 2>/dev/null \
+       && grep -q '^FRESH_SETUP=0$' "$RA_SCRIPT" 2>/dev/null \
+       && sh -n "$RA_SCRIPT" 2>/dev/null; then
+        chmod 0755 "$RA_SCRIPT" 2>/dev/null
+        echo $((_ra_n + 1)) > "$RA_ATT" 2>/dev/null
+        log -t $TAG "first boot: installing bundled apps (attempt $((_ra_n + 1)))"
+        nohup sh "$RA_SCRIPT" >/dev/null 2>&1 &
+    else
+        log -t $TAG "first boot: restore script generation failed"
+    fi
+fi
+
 # ⓪a 默认桌面：固定为 LANGOS（com.retrofront）。
 #
 # LANGOS 3.7.1 内置在 /system/app/LANGOS，刷完即是默认桌面，不依赖 Daijishō。

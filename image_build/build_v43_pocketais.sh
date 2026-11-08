@@ -38,7 +38,7 @@ HEADROOM_MIB=100
 for f in LANGOS.apk ngp-ime.apk emulators/NetherSX2.apk \
          emulators/Azahar-official-2126.2.apk emulators/ARMSX2-2.9.2-legacy-armv8.0.apk \
          azahar-official-config.ini azahar-nano-setup.sh ngp-fixup.sh \
-         ngp-mousehint.sh ngp-mousehint.rc ngp-toast.jar \
+         ngp-ota.sh ngp-mousehint.sh ngp-mousehint.rc ngp-toast.jar \
          rg52-wifi-watchdog-sdio.sh rg52-wifi-fix.sh; do
     [ -s "$IB/$f" ] || { echo "missing payload: $IB/$f" >&2; exit 1; }
 done
@@ -143,6 +143,7 @@ put dbg "$IB/azahar-nano-setup.sh" /system/bin/azahar-nano-setup.sh 0100755 2000
 # ---------- 2. p5 vendor: 启动脚本 + Toast ----------
 # /vendor/bin 的脚本沿用 build_v26 的 gid 2000 (shell)。
 put dbg5 "$IB/ngp-fixup.sh"                  /bin/ngp-fixup.sh                  0100755 2000
+put dbg5 "$IB/ngp-ota.sh"                    /bin/ngp-ota.sh                    0100755 2000
 put dbg5 "$IB/ngp-mousehint.sh"              /bin/ngp-mousehint.sh              0100755 2000
 put dbg5 "$IB/rg52-wifi-watchdog-sdio.sh"    /bin/rg52-wifi-watchdog.sh         0100755 2000
 put dbg5 "$IB/rg52-wifi-fix.sh"              /bin/rg52-wifi-fix.sh              0100755 2000
@@ -178,8 +179,9 @@ done
 rm -f "$tmpx"
 
 echo "== p5 files =="
-for f in /bin/ngp-fixup.sh /bin/ngp-mousehint.sh /bin/rg52-wifi-watchdog.sh \
-         /bin/rg52-wifi-fix.sh /etc/ngp/ngp-toast.jar /etc/init/ngp-mousehint.rc; do
+for f in /bin/ngp-fixup.sh /bin/ngp-ota.sh /bin/ngp-mousehint.sh \
+         /bin/rg52-wifi-watchdog.sh /bin/rg52-wifi-fix.sh \
+         /etc/ngp/ngp-toast.jar /etc/init/ngp-mousehint.rc; do
     printf '%-40s ' "$f"
     debugfs -R "stat $f" "$P5" 2>/dev/null | sed -n 's/.*Size: \([0-9][0-9]*\).*/\1/p' | head -1
 done

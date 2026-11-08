@@ -31,7 +31,9 @@
    **禁止**：NGP45HT 的 SPK 音频补丁、DTB、面板时序。
 
 镜像由 `image_build/build_v43_pocketais.sh` 从 v24f 镜像拼出，2026-11-08 已构建
-`pocketAis-GammaOS-20261108-v43.img`（sha256 `7ac47811…2c4f50`），发布时另附完整 SHA256。
+`pocketAis-GammaOS-20261108-v43.img`（sha256 `7ac47811…2c4f50`）并压成
+`pocketAis-GammaOS-20261108-v43.img.xz`（1,896,744,360 字节，sha256
+`8836c8ef…b65a4d`）。完整校验值见 `image_build/SHA256SUMS-v43.txt`。
 
 ---
 

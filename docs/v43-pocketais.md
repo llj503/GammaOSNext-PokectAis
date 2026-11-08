@@ -285,7 +285,10 @@ p4 空闲量；不够 152 MiB + 100 MiB 余量就 `e2fsck -fy` + `resize2fs` 到
 - **GPT 未改动**：`sgdisk -v` 报 `No problems found`，空闲扇区数 19063 与 base
   相同，p4/p5 起点仍是 237568 / 7200768。
 - 产物：`pocketAis-GammaOS-20261108-v43.img`，5,451,564,032 字节，sha256
-  `7ac478115e76c079348ab32330134a2461eb05b495275c7cd7f891be9b2c4f50`。
+  `7ac478115e76c079348ab32330134a2461eb05b495275c7cd7f891be9b2c4f50`；
+  `xz -T0 -6` 压缩后 `…img.xz` 1,896,744,360 字节，sha256
+  `8836c8ef408350ba730bab44d2e89fbf4553c2c776df76de59c501b696b65a4d`，
+  `xz -t` 通过。校验值见 `image_build/SHA256SUMS-v43.txt`。
 - `resize2fs` 扩 `shared_blocks` 文件系统成功；`unshare_blocks` 失败（见第二节）。
 - 直接对 `$IMG?offset=N` 跑 `resize2fs` 会截断镜像文件（见第二节的坑），
   脚本已改为抽取 → resize → 写回。

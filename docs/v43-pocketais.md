@@ -123,6 +123,13 @@ e2fsprogs 1.47.2 **可以直接扩**：扩张只在尾部追加新块组，已�
   是就重启一次 LANGOS。
 - `rom_root` 指向 `/storage/emulated/0/ROMs`（本机 ROM 在内置存储；NGP45HT 用
   的是独立 EEROMS 卷上的 `/storage/EEROMS`）。
+- **ROM 根目录必须真实存在**：反汇编 `NativeActivity.scanGames()` 确认，
+  `rom_root` 不存在、`autoDetectRomRoot()` 又找不到固定几个 TF 卡路径时，
+  LANGOS 不会显示 0 款，而是 `loadMockData()` 加载内置演示库——写死的
+  `/storage/FBFB-0D4A/Roms` 路径和 FC 536 / SFC 280 / GB 120… 款计数，日志
+  `TF card not accessible, using mock data`。所以 fixup 每次开机 `mkdir -p`
+  `/storage/emulated/0/ROMs`（属主 1023:1023），新建时重启一次 LANGOS。空目录
+  走正常扫描，结果是 0 平台 0 款。
 - **开机向导被跳过后的副作用**：v24f 的 fixup 不设 home，LineageOS 的
   SetupWizard 能跑完并置位 `device_provisioned`；v43 抢先把 LANGOS 设成 home，
   wizard 不再运行，`device_provisioned` 一直是 0，Android 14 的
@@ -292,11 +299,11 @@ p4 空闲量；不够 152 MiB + 100 MiB 余量就 `e2fsck -fy` + `resize2fs` 到
 - **GPT 未改动**：`sgdisk -v` 报 `No problems found`，空闲扇区数 19063 与 base
   相同，p4/p5 起点仍是 237568 / 7200768。
 - 产物：`pocketAis-GammaOS-20261108-v43.img`，5,451,564,032 字节，sha256
-  `d003caf8cd22d5688c163aa86624068fe07b04e19db7ae7913ccf4b953e753cc`；
-  `xz -T0 -6` 压缩后 `…img.xz` 1,896,731,048 字节，sha256
-  `b821db72a2d4e8a5ff6fc905c646b52be9465a178753b558cac71712f951d975`，
+  `8f792ece58dee45b13a534acda362725e62493266ba58ccc54107550d7b7b7f1`；
+  `xz -T0 -6` 压缩后 `…img.xz` 1,896,735,500 字节，sha256
+  `2aae50c913731c00a0c2cb152401aa38b4fcd328ad1d09fa69888f93f1819a73`，
   `xz -t` 通过。校验值见 `image_build/SHA256SUMS-v43.txt`。
-  （这是补上 provision 标志修复后重构建的版本。）
+  （这是补上 provision 标志和 LANGOS 空 ROM 库 mock 数据修复后重构建的版本。）
 - `resize2fs` 扩 `shared_blocks` 文件系统成功；`unshare_blocks` 失败（见第二节）。
 - 直接对 `$IMG?offset=N` 跑 `resize2fs` 会截断镜像文件（见第二节的坑），
   脚本已改为抽取 → resize → 写回。

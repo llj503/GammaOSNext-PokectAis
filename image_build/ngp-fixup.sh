@@ -514,8 +514,23 @@ esac
 # NGP45HT 用 /storage/EEROMS 短链接（它的 ROM 在独立 EEROMS 卷上）；本机没有
 # 那个卷，ROM 就在内置存储的 /storage/emulated/0/ROMs，直接指过去。
 # 只在首次（prefs 里还没有正确值）时写，避免覆盖用户自己改过的路径。
+#
+# 目录必须真实存在。反汇编 NativeActivity.scanGames() 确认：rom_root 不存在
+# 且 autoDetectRomRoot() 找不到 TF 卡时，它不会扫出 0 款，而是直接
+# loadMockData() —— 把开发者自己的卡 /storage/FBFB-0D4A/Roms 和写死的计数
+# （FC 536、SFC 280、GB 120…）当成游戏库显示，日志：
+#   D VagaRetro: TF card not accessible, using mock data
+# 空目录走正常扫描，结果是 0 平台 0 款，这才是没装 ROM 该有的样子。
 ROM_ROOT=/storage/emulated/0/ROMs
 LPREF=/data/user/0/com.retrofront/shared_prefs/retrofront.xml
+_restart_langos=0
+if [ ! -d "$ROM_ROOT" ]; then
+    mkdir -p "$ROM_ROOT" 2>/dev/null
+    chown 1023:1023 "$ROM_ROOT" 2>/dev/null
+    chmod 2770 "$ROM_ROOT" 2>/dev/null
+    _restart_langos=1
+    log -t $TAG "langos: created $ROM_ROOT (missing root would show built-in mock data)"
+fi
 if pm path com.retrofront >/dev/null 2>&1; then
     if [ ! -f "$LPREF" ]; then
         am start -n com.retrofront/.NativeActivity >/dev/null 2>&1
@@ -528,11 +543,14 @@ if pm path com.retrofront >/dev/null 2>&1; then
             sed -i "s#<string name=\"rom_root\">[^<]*</string>#<string name=\"rom_root\">$ROM_ROOT</string>#" "$LPREF" 2>/dev/null
             [ -n "$_lu" ] && chown "$_lu:$_lg" "$LPREF" 2>/dev/null
             chmod 660 "$LPREF" 2>/dev/null
-            am force-stop com.retrofront >/dev/null 2>&1
-            am start -n com.retrofront/.NativeActivity >/dev/null 2>&1
+            _restart_langos=1
             log -t $TAG "langos: rom_root -> $ROM_ROOT"
         fi
     fi
+fi
+if [ "$_restart_langos" = 1 ]; then
+    am force-stop com.retrofront >/dev/null 2>&1
+    am start -n com.retrofront/.NativeActivity >/dev/null 2>&1
 fi
 
 # ⑫b 模拟器改为「可卸载」（NGP45HT v39）

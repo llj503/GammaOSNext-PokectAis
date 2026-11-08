@@ -30,7 +30,9 @@ v24f 镜像拼出，尚未发布。
 首次刷机后：
 
 1. 桌面是 LANGOS，ROM 放在 `/storage/emulated/0/ROMs/<平台>`，LANGOS 直接扫描，
-   不需要 SAF 授权。
+   不需要 SAF 授权。这个目录由开机脚本自动创建；如果删掉，LANGOS 会回落到
+   内置演示库（每个平台几百款假数据，日志 `TF card not accessible, using mock data`），
+   重新建一个空目录并重启桌面即可。
 2. 3DS ROM 放回 `ROMs/n3ds`，PS2 放 `ROMs/ps2` 等。
 3. DS 游戏从 GammaOS Nano 壳启动。
 4. 如果自己装 Daijishō，3DS 平台仍需在界面上按一次 **+ Paths** 授权；LANGOS

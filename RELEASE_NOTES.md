@@ -31,14 +31,19 @@
    `SettingsHomepageActivity` 会直接退出（日志 `Device is not provisioned`）。
    开机脚本检测到未 provision 时补 `device_provisioned` / `user_setup_complete`
    / `tv_user_setup_complete`。
-9. **不移植**：HDMI 相关、摇杆/电源灯、`adc-keys-ngp.kl` / `ngp-navkey.sh`（本机
+9. **修复空 ROM 库显示假游戏**：LANGOS 的 `scanGames()` 在 `rom_root`
+   （`/storage/emulated/0/ROMs`）不存在时，会回落到内置演示库，显示开发者 TF 卡
+   `/storage/FBFB-0D4A/Roms` 的平台和写死的计数（FC 536、SFC 280…），日志
+   `TF card not accessible, using mock data`。开机脚本现在保证该目录存在，
+   空目录扫出 0 平台 0 款。
+10. **不移植**：HDMI 相关、摇杆/电源灯、`adc-keys-ngp.kl` / `ngp-navkey.sh`（本机
    没有那些键，音量键不能对调）、EEROMS 短链 / TF2 双 bind（单卡槽）。
    **禁止**：NGP45HT 的 SPK 音频补丁、DTB、面板时序。
 
 镜像由 `image_build/build_v43_pocketais.sh` 从 v24f 镜像拼出，2026-11-08 已构建
-`pocketAis-GammaOS-20261108-v43.img`（sha256 `d003caf8…53e753cc`）并压成
-`pocketAis-GammaOS-20261108-v43.img.xz`（1,896,731,048 字节，sha256
-`b821db72…f951d975`）。完整校验值见 `image_build/SHA256SUMS-v43.txt`。
+`pocketAis-GammaOS-20261108-v43.img`（sha256 `8f792ece…50d7b7b7f1`）并压成
+`pocketAis-GammaOS-20261108-v43.img.xz`（1,896,735,500 字节，sha256
+`2aae50c9…f1819a73`）。完整校验值见 `image_build/SHA256SUMS-v43.txt`。
 
 ---
 

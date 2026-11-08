@@ -91,6 +91,18 @@ if pm path com.retrofront >/dev/null 2>&1; then
     # MANAGE_EXTERNAL_STORAGE 是 LANGOS 扫 ROM 目录用的。
     # 内置到 /system/app 后它仍需要这条授权，否则读不到存储。
     appops set com.retrofront MANAGE_EXTERNAL_STORAGE allow >/dev/null 2>&1
+
+    # LANGOS 抢了 home 之后，LineageOS 的 SetupWizard 不会再跑。不补这几个标志，
+    # Android 14 的 SettingsHomepageActivity 会以 "Device is not provisioned"
+    # 直接 finish —— 实测点「设置」一闪就回桌面，日志：
+    #   E SettingsHomepageActivity: Device is not provisioned, exiting Settings
+    # 这里只在未 provision 时补，正常走完向导的机器不受影响。
+    if [ "$(settings get global device_provisioned 2>/dev/null)" != "1" ]; then
+        settings put global device_provisioned 1 >/dev/null 2>&1
+        settings put secure user_setup_complete 1 >/dev/null 2>&1
+        settings put secure tv_user_setup_complete 1 >/dev/null 2>&1
+        log -t $TAG "provisioning flags set (setup wizard bypassed by LANGOS home)"
+    fi
 fi
 
 # ⓪a-2 存储竞态：LANGOS 作为桌面会比 vold 先起，那时存储卷还没挂上，

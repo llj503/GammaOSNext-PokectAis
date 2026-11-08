@@ -26,14 +26,19 @@
    248 MiB，没法像 NGP45HT 那样扩 p5；但 p4 的 ext4 文件系统当初只建到
    3003 MiB，分区本身是 3400 MiB，脚本用 `resize2fs` 收回这约 397 MiB 的
    历史空隙。不改 GPT，不移动 p5..p9，也不占 userdata。
-8. **不移植**：HDMI 相关、摇杆/电源灯、`adc-keys-ngp.kl` / `ngp-navkey.sh`（本机
+8. **修复「设置」打不开**：v43 把 LANGOS 设为 home 后，LineageOS 的 SetupWizard
+   不再运行，`device_provisioned` 一直为 0，Android 14 的
+   `SettingsHomepageActivity` 会直接退出（日志 `Device is not provisioned`）。
+   开机脚本检测到未 provision 时补 `device_provisioned` / `user_setup_complete`
+   / `tv_user_setup_complete`。
+9. **不移植**：HDMI 相关、摇杆/电源灯、`adc-keys-ngp.kl` / `ngp-navkey.sh`（本机
    没有那些键，音量键不能对调）、EEROMS 短链 / TF2 双 bind（单卡槽）。
    **禁止**：NGP45HT 的 SPK 音频补丁、DTB、面板时序。
 
 镜像由 `image_build/build_v43_pocketais.sh` 从 v24f 镜像拼出，2026-11-08 已构建
-`pocketAis-GammaOS-20261108-v43.img`（sha256 `7ac47811…2c4f50`）并压成
-`pocketAis-GammaOS-20261108-v43.img.xz`（1,896,744,360 字节，sha256
-`8836c8ef…b65a4d`）。完整校验值见 `image_build/SHA256SUMS-v43.txt`。
+`pocketAis-GammaOS-20261108-v43.img`（sha256 `d003caf8…53e753cc`）并压成
+`pocketAis-GammaOS-20261108-v43.img.xz`（1,896,731,048 字节，sha256
+`b821db72…f951d975`）。完整校验值见 `image_build/SHA256SUMS-v43.txt`。
 
 ---
 

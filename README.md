@@ -39,6 +39,10 @@ v24f 镜像拼出，尚未发布。
 v24f 及更早的镜像以 Daijishō 为桌面，3DS 平台由种子数据库和首次开机脚本写入。
 v43 起这些 Daijishō 服务变成空转（等不到数据库），无害保留。
 
+v43 把 LANGOS 设为 home 后，LineageOS 的 SetupWizard 不会再运行，`ngp-fixup.sh`
+会自动补 `device_provisioned` / `user_setup_complete`——否则 Android 14 的
+「设置」会以“未 provision”为由一闪而退。
+
 ## 3DS 说明
 
 - 3DS 只走 Vulkan；OpenGL ES 在 Mali-G52 上不可用。

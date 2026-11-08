@@ -123,6 +123,13 @@ e2fsprogs 1.47.2 **可以直接扩**：扩张只在尾部追加新块组，已�
   是就重启一次 LANGOS。
 - `rom_root` 指向 `/storage/emulated/0/ROMs`（本机 ROM 在内置存储；NGP45HT 用
   的是独立 EEROMS 卷上的 `/storage/EEROMS`）。
+- **开机向导被跳过后的副作用**：v24f 的 fixup 不设 home，LineageOS 的
+  SetupWizard 能跑完并置位 `device_provisioned`；v43 抢先把 LANGOS 设成 home，
+  wizard 不再运行，`device_provisioned` 一直是 0，Android 14 的
+  `SettingsHomepageActivity` 会直接 `finish()`（日志
+  `Device is not provisioned, exiting Settings`）——表现就是点「设置」一闪回桌面。
+  fixup 现在检测到未 provision 时补 `device_provisioned` / `user_setup_complete`
+  / `tv_user_setup_complete`，只补缺，不改已完成的机器。
 
 ## 四、输入法
 
@@ -285,10 +292,11 @@ p4 空闲量；不够 152 MiB + 100 MiB 余量就 `e2fsck -fy` + `resize2fs` 到
 - **GPT 未改动**：`sgdisk -v` 报 `No problems found`，空闲扇区数 19063 与 base
   相同，p4/p5 起点仍是 237568 / 7200768。
 - 产物：`pocketAis-GammaOS-20261108-v43.img`，5,451,564,032 字节，sha256
-  `7ac478115e76c079348ab32330134a2461eb05b495275c7cd7f891be9b2c4f50`；
-  `xz -T0 -6` 压缩后 `…img.xz` 1,896,744,360 字节，sha256
-  `8836c8ef408350ba730bab44d2e89fbf4553c2c776df76de59c501b696b65a4d`，
+  `d003caf8cd22d5688c163aa86624068fe07b04e19db7ae7913ccf4b953e753cc`；
+  `xz -T0 -6` 压缩后 `…img.xz` 1,896,731,048 字节，sha256
+  `b821db72a2d4e8a5ff6fc905c646b52be9465a178753b558cac71712f951d975`，
   `xz -t` 通过。校验值见 `image_build/SHA256SUMS-v43.txt`。
+  （这是补上 provision 标志修复后重构建的版本。）
 - `resize2fs` 扩 `shared_blocks` 文件系统成功；`unshare_blocks` 失败（见第二节）。
 - 直接对 `$IMG?offset=N` 跑 `resize2fs` 会截断镜像文件（见第二节的坑），
   脚本已改为抽取 → resize → 写回。
